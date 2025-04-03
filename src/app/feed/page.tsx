@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
 import Link from 'next/link';
 import PostCard from '@/components/PostCard';
-import CreatePostForm from '@/components/CreatePostForm';
+import CreatePost from '@/components/CreatePost';
 import { Post } from '@/models/Post';
 
 export default function Feed() {
@@ -100,7 +100,7 @@ export default function Feed() {
           
           {/* Create Post Form */}
           <div className="p-4">
-            <CreatePostForm onPostCreated={handleNewPost} />
+            <CreatePost onPostCreated={handleNewPost} />
           </div>
         </div>
         

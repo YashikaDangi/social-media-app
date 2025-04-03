@@ -1,14 +1,19 @@
 import { ObjectId } from 'mongodb';
 
 export interface Post {
-  _id?: string | ObjectId;
-  userId: string | ObjectId;
+  _id: string;
+  title: string;
   content: string;
-  images?: string[];
-  likes: string[] | ObjectId[];
-  commentsCount: number;
-  createdAt: Date;
-  updatedAt: Date;
+  userId: string;
+  user?: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  likes?: string[];
+  comments?: number;
 }
 
 export interface Comment {

@@ -1,24 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server';
+// Fixed src/app/api/posts/[id]/route.ts
+import { NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getPostWithDetails, updatePost, deletePost } from '@/lib/post';
-import { saveImageFromRequest } from '@/lib/fileUpload';
+import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
-// Get a specific post
-export async function GET(
-  request: NextRequest,
+// DELETE - Delete a post
+export async function DELETE(
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const postId = params.id;
     
-    if (!id) {
+    // Validate postId
+    if (!postId || !ObjectId.isValid(postId)) {
       return NextResponse.json(
-        { message: 'Post ID is required' },
+        { message: 'Invalid post ID' },
         { status: 400 }
       );
     }
     
-    const post = await getPostWithDetails(id);
+    // Verify authentication
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    
+    if (!payload) {
+      return NextResponse.json(
+        { message: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+    
+    const client = await clientPromise;
+    const db = client.db();
+    
+    // Find the post to check ownership
+    const post = await db.collection('posts').findOne({
+      _id: new ObjectId(postId)
+    });
     
     if (!post) {
       return NextResponse.json(
@@ -27,174 +54,18 @@ export async function GET(
       );
     }
     
-    return NextResponse.json({ post });
-  } catch (error: any) {
-    console.error('Error fetching post:', error);
-    return NextResponse.json(
-      { message: error.message || 'Failed to fetch post' },
-      { status: 500 }
-    );
-  }
-}
-
-// Update a post
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // Verify authentication
-    const authHeader = request.headers.get('authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Check if the current user is the post owner
+    if (post.userId.toString() !== payload.userId) {
       return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    const token = authHeader.substring(7);
-    const payload = verifyToken(token);
-    
-    if (!payload) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-    
-    const { id } = params;
-    
-    // Get existing post to verify ownership
-    const existingPost = await getPostWithDetails(id);
-    
-    if (!existingPost) {
-      return NextResponse.json(
-        { message: 'Post not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Verify post ownership
-    if (existingPost.userId !== payload.userId) {
-      return NextResponse.json(
-        { message: 'You can only update your own posts' },
+        { message: 'You do not have permission to delete this post' },
         { status: 403 }
       );
     }
     
-    // Process request data
-    const formData = await request.formData();
-    const content = formData.get('content') as string;
-    
-    if (!content) {
-      return NextResponse.json(
-        { message: 'Content is required' },
-        { status: 400 }
-      );
-    }
-    
-    // Handle image uploads
-    let imagePaths = existingPost.images || [];
-    try {
-      // Check if there are new images
-      const hasNewImages = Array.from(formData.keys()).some(key => key === 'images');
-      
-      if (hasNewImages) {
-        const newImagePaths = await saveImageFromRequest(request);
-        imagePaths = [...imagePaths, ...newImagePaths];
-      }
-    } catch (error: any) {
-      return NextResponse.json(
-        { message: error.message || 'Error uploading images' },
-        { status: 400 }
-      );
-    }
-    
-    // Check if user wants to remove images
-    const removeImages = formData.getAll('removeImages') as string[];
-    if (removeImages.length > 0) {
-      imagePaths = imagePaths.filter(path => !removeImages.includes(path));
-    }
-    
-    // Update post in database
-    const updatedPost = await updatePost(id, content, imagePaths);
-    
-    if (!updatedPost) {
-      return NextResponse.json(
-        { message: 'Failed to update post' },
-        { status: 500 }
-      );
-    }
-    
-    return NextResponse.json({
-      message: 'Post updated successfully',
-      post: updatedPost
+    // Delete the post
+    await db.collection('posts').deleteOne({
+      _id: new ObjectId(postId)
     });
-  } catch (error: any) {
-    console.error('Error updating post:', error);
-    return NextResponse.json(
-      { message: error.message || 'Failed to update post' },
-      { status: 500 }
-    );
-  }
-}
-
-// Delete a post
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // Verify authentication
-    const authHeader = request.headers.get('authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    const token = authHeader.substring(7);
-    const payload = verifyToken(token);
-    
-    if (!payload) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-    
-    const { id } = params;
-    
-    // Get existing post to verify ownership
-    const existingPost = await getPostWithDetails(id);
-    
-    if (!existingPost) {
-      return NextResponse.json(
-        { message: 'Post not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Verify post ownership
-    if (existingPost.userId !== payload.userId) {
-      return NextResponse.json(
-        { message: 'You can only delete your own posts' },
-        { status: 403 }
-      );
-    }
-    
-    // Delete post
-    const success = await deletePost(id);
-    
-    if (!success) {
-      return NextResponse.json(
-        { message: 'Failed to delete post' },
-        { status: 500 }
-      );
-    }
     
     return NextResponse.json({
       message: 'Post deleted successfully'
@@ -203,6 +74,114 @@ export async function DELETE(
     console.error('Error deleting post:', error);
     return NextResponse.json(
       { message: error.message || 'Failed to delete post' },
+      { status: 500 }
+    );
+  }
+}
+
+// GET - Fetch a single post
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const postId = params.id;
+    
+    // Validate postId
+    if (!postId || !ObjectId.isValid(postId)) {
+      return NextResponse.json(
+        { message: 'Invalid post ID' },
+        { status: 400 }
+      );
+    }
+    
+    // Verify authentication
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    
+    if (!payload) {
+      return NextResponse.json(
+        { message: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+    
+    const client = await clientPromise;
+    const db = client.db();
+    
+    // Find the post with user information
+    const post = await db.collection('posts').aggregate([
+      {
+        $match: { _id: new ObjectId(postId) }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $addFields: {
+          user: { 
+            $cond: {
+              if: { $gt: [{ $size: "$userInfo" }, 0] },
+              then: {
+                _id: { $arrayElemAt: ["$userInfo._id", 0] },
+                name: { $arrayElemAt: ["$userInfo.name", 0] },
+                email: { $arrayElemAt: ["$userInfo.email", 0] }
+              },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          content: 1,
+          userId: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          likes: 1,
+          user: 1
+        }
+      }
+    ]).toArray();
+    
+    if (post.length === 0) {
+      return NextResponse.json(
+        { message: 'Post not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Format ObjectIds to strings for JSON serialization
+    const formattedPost = {
+      ...post[0],
+      _id: post[0]._id.toString(),
+      userId: post[0].userId.toString(),
+      user: post[0].user ? {
+        ...post[0].user,
+        _id: post[0].user._id.toString()
+      } : undefined
+    };
+    
+    return NextResponse.json({ post: formattedPost });
+  } catch (error: any) {
+    console.error('Error fetching post:', error);
+    return NextResponse.json(
+      { message: error.message || 'Failed to fetch post' },
       { status: 500 }
     );
   }
