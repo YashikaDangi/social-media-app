@@ -1,18 +1,18 @@
-// src/app/api/posts/[id]/like/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
 import { verifyToken } from '@/lib/auth';
 import { LikeCreate } from '@/models/Post';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
-  const postId = params.id;
-  
   try {
-    if (!ObjectId.isValid(postId)) {
+    // Await the params before accessing properties
+    const { id } = await Promise.resolve(context.params);
+    
+    if (!ObjectId.isValid(id)) {
       return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
     }
     
@@ -30,14 +30,14 @@ export async function GET(
     
     // Get like count
     const likeCount = await db.collection('likes').countDocuments({
-      postId: new ObjectId(postId)
+      postId: new ObjectId(id)
     });
     
     // Check if current user has liked the post
     let userLiked = false;
     if (userId) {
       const existingLike = await db.collection('likes').findOne({
-        postId: new ObjectId(postId),
+        postId: new ObjectId(id),
         userId: new ObjectId(userId)
       });
       userLiked = !!existingLike;
@@ -56,12 +56,13 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
-  const postId = params.id;
-  
   try {
+    // Await the params before accessing properties
+    const { id } = await Promise.resolve(context.params);
+    
     // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -75,7 +76,7 @@ export async function POST(
       return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
     
-    if (!ObjectId.isValid(postId)) {
+    if (!ObjectId.isValid(id)) {
       return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
     }
     
@@ -84,14 +85,14 @@ export async function POST(
     const db = client.db();
     
     // Check if post exists
-    const post = await db.collection('posts').findOne({ _id: new ObjectId(postId) });
+    const post = await db.collection('posts').findOne({ _id: new ObjectId(id) });
     if (!post) {
       return NextResponse.json({ message: 'Post not found' }, { status: 404 });
     }
     
     // Check if user has already liked the post
     const existingLike = await db.collection('likes').findOne({
-      postId: new ObjectId(postId),
+      postId: new ObjectId(id),
       userId: new ObjectId(userId)
     });
     
@@ -99,13 +100,13 @@ export async function POST(
     if (existingLike) {
       // Unlike the post
       result = await db.collection('likes').deleteOne({
-        postId: new ObjectId(postId),
+        postId: new ObjectId(id),
         userId: new ObjectId(userId)
       });
     } else {
       // Like the post
       const like: Omit<LikeCreate, '_id'> = {
-        postId: new ObjectId(postId),
+        postId: new ObjectId(id),
         userId: new ObjectId(userId),
         createdAt: new Date()
       };
@@ -115,7 +116,7 @@ export async function POST(
     
     // Get updated like count
     const likeCount = await db.collection('likes').countDocuments({
-      postId: new ObjectId(postId)
+      postId: new ObjectId(id)
     });
     
     return NextResponse.json({
