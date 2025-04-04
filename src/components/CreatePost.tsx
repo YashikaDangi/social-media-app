@@ -32,69 +32,74 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    
-    try {
-      setIsSubmitting(true);
-      
-      if (!caption.trim()) {
-        throw new Error('Please add a caption');
-      }
-      
-      if (!image) {
-        throw new Error('Please select an image');
-      }
-      
-      // Upload image and get URL
-      const imageUrl = await getImageUploadUrl(image);
-      
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-      
-      // Create post
-      const response = await fetch('/api/posts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          caption,
-          imageUrl,
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create post');
-      }
+  // Updated handleSubmit function in CreatePost component
 
-      // Parse the created post from the response
-      const newPost = await response.json();
-      
-      // Call onPostCreated if provided
-      if (onPostCreated) {
-        onPostCreated(newPost);
-      }
-      
-      // Reset form
-      setCaption('');
-      setImage(null);
-      setImagePreview(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
-    } finally {
-      setIsSubmitting(false);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  
+  try {
+    setIsSubmitting(true);
+    
+    if (!caption.trim()) {
+      throw new Error('Please add a caption');
     }
-  };
+    
+    if (!image) {
+      throw new Error('Please select an image');
+    }
+    
+    // Upload image and get URL
+    const imageUrl = await getImageUploadUrl(image);
+    
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+    
+    // Create post
+    const response = await fetch('/api/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        caption,
+        imageUrl,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to create post');
+    }
+
+    // Parse the created post from the response
+    const responseData = await response.json();
+    
+    // Extract the actual post object from the response
+    const newPost = responseData.post || responseData;
+    
+    // Call onPostCreated if provided
+    if (onPostCreated) {
+      onPostCreated(newPost);
+    }
+    
+    // Reset form
+    setCaption('');
+    setImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  } catch (err: any) {
+    setError(err.message || 'An error occurred');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">

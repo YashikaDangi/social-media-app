@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { Post } from '@/models/Post';
 import { User } from '@/models/User';
+import { Heart, MessageCircle, Bookmark, MoreHorizontal } from 'lucide-react';
 
 interface PostCardProps {
   post: Post;
@@ -103,43 +104,51 @@ export default function PostCard({ post, currentUser, onDelete, onLikeUpdate }: 
   
   const isOwner = currentUser && post.userId === currentUser._id;
 
+  // Close options menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (showOptions) setShowOptions(false);
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showOptions]);
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-      {/* Post header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+    <div className="bg-white rounded-lg border border-gray-200 mb-6">
+      {/* Post header - Instagram style */}
+      <div className="p-3 flex justify-between items-center">
         <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-            <span className="text-lg font-medium text-indigo-800">
+          <div className="h-8 w-8 rounded-full ring-2 ring-gray-200 p-0.5">
+            <div className="h-full w-full rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-medium">
               {post.author?.name ? post.author.name.charAt(0).toUpperCase() : 'U'}
-            </span>
+            </div>
           </div>
           <div>
-            <p className="font-medium text-gray-900 dark:text-white">
+            <p className="text-sm font-semibold">
               {post.author?.name || 'Unknown User'}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{formattedDate}</p>
           </div>
         </div>
         
         {isOwner && (
-          <div className="relative">
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button 
               onClick={() => setShowOptions(!showOptions)}
-              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
+              className="p-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+              aria-label="More options"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-              </svg>
+              <MoreHorizontal className="h-5 w-5" />
             </button>
             
             {showOptions && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-md shadow-lg z-10">
+              <div className="absolute right-0 mt-1 w-40 bg-white rounded-md shadow-lg z-10 border border-gray-100 overflow-hidden">
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none"
+                  className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-gray-50 font-medium focus:outline-none border-t border-gray-100"
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Post'}
+                  {isDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             )}
@@ -147,89 +156,76 @@ export default function PostCard({ post, currentUser, onDelete, onLikeUpdate }: 
         )}
       </div>
       
-      {/* Post image */}
+      {/* Post image - Instagram style square format */}
       {post.imageUrl && (
-        <Link href={`/posts/${post._id}`} className="block">
-          <div className="relative pb-[75%] bg-gray-100 dark:bg-gray-700">
-            <img
-              src={post.imageUrl}
-              alt={post.caption || 'Post image'}
-              className="absolute h-full w-full object-cover"
-            />
-          </div>
-        </Link>
+        <div className="aspect-square w-full bg-gray-100 border-y border-gray-100">
+          <img
+            src={post.imageUrl}
+            alt={post.caption || 'Post image'}
+            className="w-full h-full object-cover"
+          />
+        </div>
       )}
       
-      {/* Post actions */}
-      <div className="p-4">
-        <div className="flex space-x-4 mb-3">
-          <button
-            onClick={handleLike}
-            disabled={isLiking}
-            className={`flex items-center space-x-1 ${
-              isLiked ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'
-            } hover:text-red-500 transition-colors disabled:opacity-50 focus:outline-none`}
-            aria-label={isLiked ? "Unlike" : "Like"}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill={isLiked ? 'currentColor' : 'none'}
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={isLiked ? 0 : 1.5}
+      {/* Post actions - Instagram style */}
+      <div className="p-3">
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex space-x-4">
+            <button
+              onClick={handleLike}
+              disabled={isLiking}
+              className={`focus:outline-none ${isLiking ? 'opacity-50' : ''}`}
+              aria-label={isLiked ? "Unlike" : "Like"}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              <Heart 
+                className={`h-6 w-6 ${isLiked ? 'text-red-500 fill-red-500' : 'text-black'}`} 
+                strokeWidth={isLiked ? 0 : 1.5} 
               />
-            </svg>
-            <span>{likeCount}</span>
-          </button>
+            </button>
+            
+            <Link href={`/posts/${post._id}`} className="focus:outline-none">
+              <MessageCircle className="h-6 w-6 text-black" strokeWidth={1.5} />
+            </Link>
+          </div>
           
-          <Link href={`/posts/${post._id}`} className="flex items-center space-x-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
-            <span>{commentCount}</span>
-          </Link>
+          <button className="focus:outline-none">
+            <Bookmark className="h-6 w-6 text-black" strokeWidth={1.5} />
+          </button>
         </div>
         
-        {/* Post caption */}
+        {/* Like count - Instagram style */}
+        {likeCount > 0 && (
+          <p className="text-sm font-semibold mb-1">
+            {likeCount === 1 ? '1 like' : `${likeCount} likes`}
+          </p>
+        )}
+        
+        {/* Caption - Instagram style */}
         {post.caption && (
-          <div className="mt-1">
-            <p className="text-gray-700 dark:text-gray-300">
-              <span className="font-medium">{post.author?.name || 'Unknown'}: </span>
-              {post.caption.length > 150 
-                ? `${post.caption.substring(0, 150)}...` 
+          <div className="mb-1">
+            <p className="text-sm">
+              <span className="font-semibold mr-1">{post.author?.name || 'Unknown'}</span>
+              {post.caption.length > 125 
+                ? `${post.caption.substring(0, 125)}...` 
                 : post.caption}
             </p>
-            {post.caption.length > 150 && (
-              <Link href={`/posts/${post._id}`} className="text-sm text-gray-500 dark:text-gray-400 hover:underline">
-                Read more
+            {post.caption.length > 125 && (
+              <Link href={`/posts/${post._id}`} className="text-xs text-gray-500 hover:text-gray-700">
+                more
               </Link>
             )}
           </div>
         )}
         
-        {/* View comments link */}
+        {/* View comments link - Instagram style */}
         {commentCount > 0 && (
-          <Link href={`/posts/${post._id}`} className="block mt-2 text-sm text-gray-500 dark:text-gray-400 hover:underline">
+          <Link href={`/posts/${post._id}`} className="block text-xs text-gray-500 hover:text-gray-700 mt-1">
             {commentCount === 1 ? 'View 1 comment' : `View all ${commentCount} comments`}
           </Link>
         )}
+        
+        {/* Post date - Instagram style */}
+        <p className="text-xs text-gray-400 uppercase mt-2">{formattedDate}</p>
       </div>
     </div>
   );

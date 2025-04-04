@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { OAuth2Client } from 'google-auth-library';
-import { findOrCreateGoogleUser, generateToken } from '@/lib/auth';
 
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -8,7 +7,7 @@ const googleClient = new OAuth2Client(
   `${process.env.NEXTAUTH_URL}/api/auth/google/callback`
 );
 
-export async function GET(request: Request) {
+export async function GET() {
   const authUrl = googleClient.generateAuthUrl({
     access_type: 'offline',
     scope: [

@@ -47,9 +47,11 @@ export async function GET(
       likeCount,
       userLiked
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get like information';
+    
     return NextResponse.json(
-      { message: error.message || 'Failed to get like information' },
+      { message: errorMessage },
       { status: 500 }
     );
   }
@@ -96,13 +98,14 @@ export async function POST(
       userId: new ObjectId(userId)
     });
     
-    let result;
+    let isLiked: boolean;
     if (existingLike) {
       // Unlike the post
-      result = await db.collection('likes').deleteOne({
+      await db.collection('likes').deleteOne({
         postId: new ObjectId(id),
         userId: new ObjectId(userId)
       });
+      isLiked = false;
     } else {
       // Like the post
       const like: Omit<LikeCreate, '_id'> = {
@@ -111,7 +114,8 @@ export async function POST(
         createdAt: new Date()
       };
       
-      result = await db.collection('likes').insertOne(like);
+      await db.collection('likes').insertOne(like);
+      isLiked = true;
     }
     
     // Get updated like count
@@ -120,13 +124,15 @@ export async function POST(
     });
     
     return NextResponse.json({
-      message: existingLike ? 'Post unliked successfully' : 'Post liked successfully',
-      liked: !existingLike,
+      message: isLiked ? 'Post liked successfully' : 'Post unliked successfully',
+      liked: isLiked,
       likeCount
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to like/unlike post';
+    
     return NextResponse.json(
-      { message: error.message || 'Failed to like/unlike post' },
+      { message: errorMessage },
       { status: 500 }
     );
   }

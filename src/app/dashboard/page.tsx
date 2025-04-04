@@ -5,21 +5,20 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import Link from 'next/link';
 import { 
-  Home, 
-  User, 
-  Settings, 
-  LogOut 
+  Home,
+  PlusCircle,
+  Image
 } from 'lucide-react';
 import PostCard from '@/components/PostCard';
 import CreatePost from '@/components/CreatePost';
 import { Post } from '@/models/Post';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function Dashboard() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showCreatePost, setShowCreatePost] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -82,6 +81,7 @@ export default function Dashboard() {
   // Handle post creation
   const handleNewPost = (post: Post) => {
     setPosts([post, ...posts]);
+    setShowCreatePost(false);
   };
 
   // Handle post deletion
@@ -105,10 +105,10 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-pulse w-16 h-16 mx-auto bg-indigo-500 rounded-full mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+          <div className="animate-pulse w-16 h-16 mx-auto bg-gray-200 rounded-full mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
         </div>
       </div>
     );
@@ -119,121 +119,154 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-md z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
+    <div className="min-h-screen bg-white">
+      {/* Instagram-style header */}
+      <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-              MyApp
-            </Link>
-
-            {/* Navigation Links */}
-            <div className="flex items-center space-x-6">
-              <Link 
-                href="/dashboard" 
-                className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center space-x-2"
-              >
-                <Home className="h-5 w-5" />
-                <span>Dashboard</span>
-              </Link>
-              <Link 
-                href="/profile" 
-                className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center space-x-2"
-              >
-                <User className="h-5 w-5" />
-                <span>Profile</span>
+            <div className="flex-shrink-0">
+              <Link href="/dashboard" className="font-serif text-xl font-bold italic">
+                Socialify
               </Link>
             </div>
-
-            {/* User Menu */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                  <span className="text-indigo-600 font-semibold">
-                    {user.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {user.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {user.email}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Logout Button */}
-              <button
-                onClick={logout}
-                className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 flex items-center space-x-2"
+            
+            {/* Navigation icons */}
+            <nav className="flex items-center space-x-5">
+              <Link href="/dashboard" className="text-gray-800 hover:text-black">
+                <Home className="h-6 w-6" />
+              </Link>
+              <button 
+                onClick={() => setShowCreatePost(!showCreatePost)} 
+                className="text-gray-800 hover:text-black"
               >
-                <LogOut className="h-5 w-5" />
-                <span className="hidden md:inline">Logout</span>
+                <PlusCircle className="h-6 w-6" />
               </button>
-            </div>
+              
+              {/* User avatar with profile link */}
+              <Link href="/profile" className="relative">
+                <div className="h-8 w-8 rounded-full ring-2 ring-gray-200 overflow-hidden">
+                  <div className="h-full w-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+              </Link>
+            </nav>
           </div>
         </div>
-      </nav>
+      </header>
 
       {/* Main Content */}
-      <main className="pt-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-12 gap-6">
-          {/* Main Content Column */}
-          <div className="col-span-8 space-y-6">
-            {/* Create Post Section */}
-            {/* <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Create a Post
-              </h3>
-              <CreatePost onPostCreated={handleNewPost} />
-            </div> */}
-
-            {/* All Posts Section */}
-            <div className="space-y-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                Recent Posts
-              </h3>
-              
-              {posts.length > 0 ? (
-                <div className="space-y-4">
-                  {posts.map(post => (
-                    <PostCard
-                      key={post._id}
-                      post={post}
-                      currentUser={user}
-                      onDelete={handleDeletePost}
-                      onLikeUpdate={handleLikeUpdate}
-                    />
-                  ))}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col max-w-lg mx-auto">
+          
+          
+          {/* Feed */}
+          <div className="space-y-4">
+            {isLoading ? (
+              // Loading skeleton
+              Array(3).fill(0).map((_, index) => (
+                <div key={index} className="bg-white rounded-lg border border-gray-200 mb-4 animate-pulse">
+                  <div className="p-4 flex items-center space-x-3 border-b border-gray-100">
+                    <div className="h-8 w-8 rounded-full bg-gray-200"></div>
+                    <div className="h-4 w-24 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="aspect-square bg-gray-100"></div>
+                  <div className="p-4 space-y-3">
+                    <div className="flex space-x-3">
+                      <div className="h-6 w-6 rounded-full bg-gray-200"></div>
+                      <div className="h-6 w-6 rounded-full bg-gray-200"></div>
+                    </div>
+                    <div className="h-4 w-1/3 bg-gray-200 rounded"></div>
+                    <div className="h-4 w-1/2 bg-gray-200 rounded"></div>
+                  </div>
                 </div>
-              ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
-                  <p className="text-gray-500 dark:text-gray-400">
-                   <LoadingSpinner/>
-                  </p>
+              ))
+            ) : posts.length > 0 ? (
+              posts.map(post => (
+                user && (
+                  <PostCard
+                    key={post._id || `post-${Math.random()}`}
+                    post={post}
+                    currentUser={user}
+                    onDelete={handleDeletePost}
+                    onLikeUpdate={handleLikeUpdate}
+                  />
+                )
+              ))
+            ) : (
+              <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+                <div className="mx-auto h-16 w-16 mb-4 rounded-full border-2 border-black flex items-center justify-center">
+                  <Image className="h-8 w-8" />
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          {/* <div className="col-span-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Welcome, {user.name}!
-              </h3>
-              <div className="p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
-                <p className="text-gray-500 dark:text-gray-400">
-                  {user.email}
+                <h3 className="text-xl font-light mb-2">No Posts Yet</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  When people you follow share posts, you'll see them here.
                 </p>
+                <button
+                  onClick={() => setShowCreatePost(true)}
+                  className="text-sm font-semibold text-blue-500"
+                >
+                  Share your first photo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Create post modal - shows/hides based on state */}
+        {showCreatePost && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={() => setShowCreatePost(false)}></div>
+              </div>
+              
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+              
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="border-b border-gray-200 py-3 px-4 flex justify-between items-center">
+                  <h3 className="font-semibold">Create new post</h3>
+                  <button 
+                    onClick={() => setShowCreatePost(false)}
+                    className="text-gray-400 hover:text-gray-500"
+                  >
+                    &times;
+                  </button>
+                </div>
+                <div className="p-6">
+                  <CreatePost 
+                    onPostCreated={(post) => {
+                      handleNewPost(post);
+                      setShowCreatePost(false);
+                    }} 
+                  />
+                </div>
               </div>
             </div>
-          </div> */}
-        </div>
+          </div>
+        )}
       </main>
+      
+      {/* Mobile bottom navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+        <div className="flex justify-around py-3">
+          <Link href="/dashboard" className="text-black">
+            <Home className="h-6 w-6 mx-auto" />
+          </Link>
+          <button 
+            onClick={() => setShowCreatePost(true)}
+            className="text-black" 
+          >
+            <PlusCircle className="h-6 w-6 mx-auto" />
+          </button>
+          <Link href="/profile" className="text-black">
+            <div className="h-6 w-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 mx-auto flex items-center justify-center">
+              <span className="text-white text-xs">{user.name.charAt(0)}</span>
+            </div>
+          </Link>
+        </div>
+      </nav>
     </div>
   );
 }

@@ -1,5 +1,3 @@
-// Create a new file: app/api/auth/user/route.ts
-
 import { NextResponse } from 'next/server';
 import { verifyToken, findUserById } from '@/lib/auth';
 
@@ -34,14 +32,21 @@ export async function GET(request: Request) {
     }
     
     // Remove password from user object
-    const { password, ...userWithoutPassword } = user;
+    const { ...userWithoutPassword } = user;
     
     return NextResponse.json({
       user: userWithoutPassword,
     });
-  } catch (error: any) {
+  } catch (error) {
+    // Type-safe error handling
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string'
+        ? error
+        : 'Failed to get user';
+
     return NextResponse.json(
-      { message: error.message || 'Failed to get user' },
+      { message: errorMessage },
       { status: 500 }
     );
   }

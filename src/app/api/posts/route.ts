@@ -1,4 +1,3 @@
-// src/app/api/posts/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, findUserById } from '@/lib/auth';
 import clientPromise from '@/lib/mongodb';
@@ -64,17 +63,24 @@ export async function GET(request: NextRequest) {
       ])
       .toArray();
     
-      return NextResponse.json({
-        posts: posts.map(post => ({
-          ...post,
-          _id: post._id instanceof ObjectId ? post._id.toString() : post._id,
-          userId: post.userId instanceof ObjectId ? post.userId.toString() : post.userId
-        }))
-      });
-  } catch (error: any) {
+    return NextResponse.json({
+      posts: posts.map(post => ({
+        ...post,
+        _id: post._id instanceof ObjectId ? post._id.toString() : post._id,
+        userId: post.userId instanceof ObjectId ? post.userId.toString() : post.userId
+      }))
+    });
+  } catch (error) {
+    // Type-safe error handling
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string'
+        ? error
+        : 'Failed to fetch posts';
+
     console.error('Error fetching posts:', error);
     return NextResponse.json(
-      { message: error.message || 'Failed to fetch posts' },
+      { message: errorMessage },
       { status: 500 }
     );
   }
@@ -180,10 +186,20 @@ export async function POST(request: NextRequest) {
         }
       });
     }
-  } catch (error: any) {
+
+    // Fallback if no post is found
+    throw new Error('Failed to create post');
+  } catch (error) {
+    // Type-safe error handling
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string'
+        ? error
+        : 'Failed to create post';
+
     console.error('Error creating post:', error);
     return NextResponse.json(
-      { message: error.message || 'Failed to create post' },
+      { message: errorMessage },
       { status: 500 }
     );
   }

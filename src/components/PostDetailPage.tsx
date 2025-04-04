@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/app/context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
+import { Heart } from 'lucide-react';
 
 // Types
 interface Comment {
@@ -74,40 +76,48 @@ export const CommentForm: React.FC<CommentFormProps> = ({ postId, onCommentAdded
 
   if (!user) {
     return (
-      <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mt-4">
-        <p className="text-gray-600 dark:text-gray-300 text-center">
-          Please <a href="/auth/login" className="text-indigo-600 hover:text-indigo-500">log in</a> to add a comment
+      <div className="border-t border-gray-200 pt-4 pb-3 px-4 bg-white">
+        <p className="text-sm text-gray-500 text-center">
+          Please <Link href="/auth/login" className="text-blue-500 font-semibold">log in</Link> to add a comment
         </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4">
-      <div className="mb-2">
-        <textarea
-          rows={2}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          placeholder="Add a comment..."
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          required
-        ></textarea>
-      </div>
-      
+    <form onSubmit={handleSubmit} className="border-t border-gray-200 pt-3 pb-3 px-4 bg-white">
       {error && (
-        <div className="mb-2 p-2 text-sm bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="mb-3 p-2 text-xs bg-red-50 border border-red-200 text-red-500 rounded">
           {error}
         </div>
       )}
       
-      <div className="flex justify-end">
+      <div className="flex items-center">
+        <div className="w-8 h-8 rounded-full overflow-hidden mr-2 flex-shrink-0">
+          <div className="h-full w-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+        </div>
+        
+        <div className="flex-grow relative">
+          <input
+            type="text"
+            className="w-full py-2 px-3 text-sm border-none focus:outline-none placeholder-gray-400 bg-transparent text-gray-800"
+            placeholder="Add a comment..."
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            required
+          />
+        </div>
+        
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          disabled={isSubmitting || !content.trim()}
+          className={`ml-2 text-blue-500 font-semibold text-sm ${
+            (isSubmitting || !content.trim()) ? 'opacity-50 cursor-not-allowed' : 'hover:text-blue-700'
+          }`}
         >
-          {isSubmitting ? 'Posting...' : 'Post Comment'}
+          {isSubmitting ? 'Posting...' : 'Post'}
         </button>
       </div>
     </form>
@@ -152,47 +162,181 @@ export const CommentList: React.FC<CommentListProps> = ({ postId }) => {
   };
 
   if (loading) {
-    return <div className="text-center py-4">Loading comments...</div>;
+    return (
+      <div className="p-4 border-t border-gray-200 bg-white">
+        <div className="flex justify-center">
+          <div className="animate-pulse w-6 h-6 rounded-full bg-gray-200"></div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-red-500 py-4">Error: {error}</div>;
+    return (
+      <div className="p-4 border-t border-gray-200 text-center bg-white">
+        <div className="text-red-500 text-sm">Error loading comments</div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4 mt-6">
-      <CommentForm postId={postId} onCommentAdded={handleCommentAdded} />
-      
-      <h3 className="text-lg font-semibold mt-6">{comments.length > 0 ? `Comments (${comments.length})` : 'No comments yet'}</h3>
-      
-      {comments.length > 0 ? (
-        <div className="space-y-4">
-          {comments.map((comment) => (
-            <div key={comment._id} className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-              <div className="flex items-start space-x-2">
-                <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-medium text-indigo-800">
-                    {comment.author?.name ? comment.author.name.charAt(0).toUpperCase() : '?'}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {comment.author?.name || 'Anonymous'}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {typeof comment.createdAt === 'string' 
-                        ? formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })
-                        : formatDistanceToNow(comment.createdAt, { addSuffix: true })}
-                    </p>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{comment.content}</p>
-                </div>
+    <div className="bg-white">
+      {/* Comments section - Instagram style */}
+      {comments.length > 0 && (
+        <div className="px-4 py-2 bg-white">
+          {comments.length > 2 && (
+            <Link href={`/posts/${postId}`} className="block text-sm text-gray-500 my-2">
+              View all {comments.length} comments
+            </Link>
+          )}
+          
+          {/* Only show 2 most recent comments for Instagram-like preview */}
+          {comments.slice(0, 2).map((comment) => (
+            <div key={comment._id} className="mb-1">
+              <div className="flex">
+                <p className="text-sm text-gray-800">
+                  <span className="font-semibold mr-1">{comment.author?.name || 'Anonymous'}</span>
+                  {comment.content}
+                </p>
+              </div>
+              <div className="flex items-center mt-1 space-x-3">
+                <p className="text-xs text-gray-500">
+                  {typeof comment.createdAt === 'string'
+                    ? formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })
+                    : formatDistanceToNow(comment.createdAt, { addSuffix: true })}
+                </p>
+                <button className="text-xs text-gray-500 font-semibold">Reply</button>
               </div>
             </div>
           ))}
         </div>
-      ) : null}
+      )}
+      
+      {/* Post date */}
+      <div className="px-4 py-1 bg-white">
+        <p className="text-xs uppercase text-gray-400">
+          {comments.length > 0 && comments[0].createdAt
+            ? formatDistanceToNow(
+                new Date(typeof comments[0].createdAt === 'string' 
+                  ? comments[0].createdAt 
+                  : comments[0].createdAt
+                ), 
+                { addSuffix: true }
+              )
+            : ''
+          }
+        </p>
+      </div>
+      
+      {/* Comment form */}
+      <CommentForm postId={postId} onCommentAdded={handleCommentAdded} />
+    </div>
+  );
+};
+
+// Post Detail Comment View - Used on the individual post page
+export const PostDetailComments: React.FC<CommentListProps> = ({ postId }) => {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/posts/${postId}/comments`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch comments');
+        }
+        
+        const data = await response.json();
+        setComments(data);
+      } catch (err: any) {
+        setError(err.message || 'Error loading comments');
+        console.error('Error fetching comments:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchComments();
+  }, [postId]);
+
+  const handleCommentAdded = (newComment: Comment) => {
+    setComments(prevComments => [newComment, ...prevComments]);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 flex justify-center bg-white">
+        <div className="animate-pulse w-8 h-8 rounded-full bg-gray-200"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-center bg-white">
+        <div className="text-red-500 text-sm">Error loading comments</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200">
+      {/* Comments header */}
+      <div className="px-4 py-3 border-b border-gray-200 bg-white">
+        <h2 className="text-base font-semibold text-gray-800">Comments {comments.length > 0 && `(${comments.length})`}</h2>
+      </div>
+      
+      {/* Comment list - full version for post detail page */}
+      <div className="max-h-96 overflow-y-auto bg-white">
+        {comments.length > 0 ? (
+          <div className="divide-y divide-gray-100">
+            {comments.map((comment) => (
+              <div key={comment._id} className="px-4 py-3 bg-white">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                    <div className="h-full w-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">
+                      {comment.author?.name ? comment.author.name.charAt(0).toUpperCase() : '?'}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-baseline">
+                      <p className="text-sm font-semibold mr-2 text-gray-800">
+                        {comment.author?.name || 'Anonymous'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {typeof comment.createdAt === 'string'
+                          ? formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })
+                          : formatDistanceToNow(comment.createdAt, { addSuffix: true })}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-800">{comment.content}</p>
+                    <div className="mt-1 flex items-center space-x-3">
+                      <button className="text-xs text-gray-500 font-semibold">Like</button>
+                      <button className="text-xs text-gray-500 font-semibold">Reply</button>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <button className="text-gray-400 hover:text-gray-600">
+                      <Heart className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 text-center bg-white">
+            <p className="text-gray-500 text-sm">No comments yet. Be the first to comment!</p>
+          </div>
+        )}
+      </div>
+      
+      {/* Comment form */}
+      <CommentForm postId={postId} onCommentAdded={handleCommentAdded} />
     </div>
   );
 };

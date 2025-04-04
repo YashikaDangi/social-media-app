@@ -18,6 +18,11 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
+// Interface for error responses
+interface ErrorResponse {
+  message?: string;
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -42,16 +47,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const data = await response.json();
               setUser(data.user);
             } else {
-              console.error('Failed to fetch user data:', await response.text());
+              const errorData: ErrorResponse = await response.json();
+              console.error('Failed to fetch user data:', errorData.message || 'Unknown error');
               localStorage.removeItem('token');
             }
           } catch (error) {
-            console.error('Auth check error:', error);
+            const errorMessage = error instanceof Error 
+              ? error.message 
+              : 'Auth check error';
+            
+            console.error('Auth check error:', errorMessage);
             localStorage.removeItem('token');
           }
         }
       } catch (error) {
-        console.error('Auth check error:', error);
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : 'Auth check error';
+        
+        console.error('Auth check error:', errorMessage);
       } finally {
         setLoading(false);
       }
@@ -71,23 +85,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Login failed");
+        const errorData: ErrorResponse = await response.json();
+        throw new Error(errorData.message || "Login failed");
       }
 
       const data = await response.json();
       localStorage.setItem("token", data.token);
       setUser(data.user);
-    } catch (error: any) {
-      throw new Error(error.message || "Login failed");
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'string'
+          ? error
+          : "Login failed";
+      
+      throw new Error(errorMessage);
     }
   };
 
   const loginWithGoogle = async () => {
     try {
       window.location.href = "/api/auth/google";
-    } catch (error: any) {
-      throw new Error(error.message || "Google login failed");
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'string'
+          ? error
+          : "Google login failed";
+      
+      throw new Error(errorMessage);
     }
   };
 
@@ -102,15 +128,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Registration failed");
+        const errorData: ErrorResponse = await response.json();
+        throw new Error(errorData.message || "Registration failed");
       }
 
       const data = await response.json();
       localStorage.setItem("token", data.token);
       setUser(data.user);
-    } catch (error: any) {
-      throw new Error(error.message || "Registration failed");
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'string'
+          ? error
+          : "Registration failed";
+      
+      throw new Error(errorMessage);
     }
   };
 

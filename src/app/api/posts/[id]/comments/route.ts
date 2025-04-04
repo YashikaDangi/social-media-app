@@ -1,15 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
+import { verifyToken } from '@/lib/auth';
 
-// Define the route handler with explicit param type
+// GET handler for fetching comments
 export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Get the params as a Promise and await it
-    const { id } = await Promise.resolve(context.params);
+    const { id } = params;
     
     if (!id) {
       return NextResponse.json(
@@ -29,9 +29,46 @@ export async function GET(
     const db = client.db();
     
     // Find comments for the specified post
+    // Use an aggregation to join with users collection to get author details
     const comments = await db.collection('comments')
-      .find({ postId: new ObjectId(id) })
-      .sort({ createdAt: -1 }) // Newest first
+      .aggregate([
+        { 
+          $match: { 
+            postId: new ObjectId(id) 
+          } 
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'author'
+          }
+        },
+        {
+          $unwind: {
+            path: '$author',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            postId: 1,
+            userId: 1,
+            content: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            'author.name': 1,
+            'author.email': 1
+          }
+        },
+        { 
+          $sort: { 
+            createdAt: -1 
+          } 
+        }
+      ])
       .toArray();
     
     // Convert ObjectIds to strings for JSON serialization
@@ -43,10 +80,17 @@ export async function GET(
     }));
     
     return NextResponse.json(serializedComments);
-  } catch (error: any) {
+  } catch (error) {
+    // Type-safe error handling
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string'
+        ? error
+        : 'Failed to fetch comments';
+
     console.error('Error fetching comments:', error);
     return NextResponse.json(
-      { message: error.message || 'Failed to fetch comments' },
+      { message: errorMessage },
       { status: 500 }
     );
   }
@@ -54,12 +98,11 @@ export async function GET(
 
 // POST handler for creating comments
 export async function POST(
-  request: NextRequest,
-  context: { params: { id: string } }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Get the params as a Promise and await it
-    const { id } = await Promise.resolve(context.params);
+    const { id } = params;
     
     if (!id) {
       return NextResponse.json(
@@ -75,7 +118,26 @@ export async function POST(
       );
     }
     
-    const { content, userId } = await request.json();
+    // Verify user token to get userId
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    
+    if (!payload || !payload.userId) {
+      return NextResponse.json(
+        { message: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+    
+    const { content } = await request.json();
     
     if (!content) {
       return NextResponse.json(
@@ -99,10 +161,10 @@ export async function POST(
       );
     }
     
-    // Create the comment
+    // Create the comment with proper userId from token
     const comment = {
       postId: new ObjectId(id),
-      userId: userId ? new ObjectId(userId) : null,
+      userId: new ObjectId(payload.userId),
       content,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -110,16 +172,38 @@ export async function POST(
     
     const result = await db.collection('comments').insertOne(comment);
     
+    // After creating the comment, fetch the user details to include in response
+    const user = await db.collection('users').findOne(
+      { _id: new ObjectId(payload.userId) },
+      { projection: { name: 1, email: 1 } }
+    );
+    
+    // Return the newly created comment with author info
     return NextResponse.json({
-      _id: result.insertedId.toString(),
-      ...comment,
-      postId: comment.postId.toString(),
-      userId: comment.userId ? comment.userId.toString() : null,
+      comment: {
+        _id: result.insertedId.toString(),
+        postId: id,
+        userId: payload.userId,
+        content,
+        createdAt: comment.createdAt,
+        updatedAt: comment.updatedAt,
+        author: user ? {
+          name: user.name,
+          email: user.email
+        } : null
+      }
     }, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
+    // Type-safe error handling
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string'
+        ? error
+        : 'Failed to create comment';
+
     console.error('Error creating comment:', error);
     return NextResponse.json(
-      { message: error.message || 'Failed to create comment' },
+      { message: errorMessage },
       { status: 500 }
     );
   }

@@ -1,4 +1,3 @@
-// src/app/api/posts/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
@@ -9,8 +8,8 @@ export async function GET(
   context: { params: { id: string } }
 ) {
   try {
-    const postId = context.params.id;
-    if (!ObjectId.isValid(postId)) {
+    const { id } = await Promise.resolve(context.params); 
+    if (!ObjectId.isValid(id)) {
       return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
     }
     
@@ -28,7 +27,7 @@ export async function GET(
     
     // Get post by ID
     const post = await db.collection('posts').findOne({
-      _id: new ObjectId(postId)
+      _id: new ObjectId(id)
     });
     
     if (!post) {
@@ -43,14 +42,14 @@ export async function GET(
     
     // Get like count
     const likeCount = await db.collection('likes').countDocuments({
-      postId: new ObjectId(postId)
+      postId: new ObjectId(id)
     });
     
     // Check if current user has liked the post
     let userLiked = false;
     if (userId) {
       const existingLike = await db.collection('likes').findOne({
-        postId: new ObjectId(postId),
+        postId: new ObjectId(id),
         userId: new ObjectId(userId)
       });
       userLiked = !!existingLike;
@@ -70,15 +69,21 @@ export async function GET(
     };
     
     return NextResponse.json(postWithDetails);
-  } catch (error: any) {
+  } catch (error) {
+    // Type-safe error handling
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string'
+        ? error
+        : 'Failed to fetch post';
+
     return NextResponse.json(
-      { message: error.message || 'Failed to fetch post' },
+      { message: errorMessage },
       { status: 500 }
     );
   }
 }
 
-// If you have DELETE functionality, ensure it follows the same pattern
 export async function DELETE(
   request: Request,
   context: { params: { id: string } }
@@ -98,7 +103,7 @@ export async function DELETE(
     }
     
     const postId = context.params.id;
-        if (!ObjectId.isValid(postId)) {
+    if (!ObjectId.isValid(postId)) {
       return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
     }
     
@@ -128,9 +133,16 @@ export async function DELETE(
     await db.collection('comments').deleteMany({ postId: new ObjectId(postId) });
     
     return NextResponse.json({ message: 'Post deleted successfully' });
-  } catch (error: any) {
+  } catch (error) {
+    // Type-safe error handling
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string'
+        ? error
+        : 'Failed to delete post';
+
     return NextResponse.json(
-      { message: error.message || 'Failed to delete post' },
+      { message: errorMessage },
       { status: 500 }
     );
   }
