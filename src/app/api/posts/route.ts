@@ -1,46 +1,14 @@
-import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+// src/app/api/posts/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken, findUserById } from '@/lib/auth';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-// GET handler for retrieving posts
-export async function GET(request: Request) {
+// Get all posts
+export async function GET(request: NextRequest) {
   try {
-    const client = await clientPromise;
-    const db = client.db();
-    
-    // Get query parameters
-    const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get('limit') || '10');
-    const page = parseInt(url.searchParams.get('page') || '0');
-    
-    // Get posts with pagination
-    const posts = await db.collection('posts')
-      .find({})
-      .sort({ createdAt: -1 })
-      .skip(page * limit)
-      .limit(limit)
-      .toArray();
-    
-    return NextResponse.json({
-      posts,
-      page,
-      limit,
-    });
-  } catch (error: any) {
-    console.error('Error fetching posts:', error);
-    return NextResponse.json(
-      { message: error.message || 'Failed to fetch posts' },
-      { status: 500 }
-    );
-  }
-}
-
-// POST handler for creating a new post
-export async function POST(request: Request) {
-  try {
-    // Verify authentication
     const authHeader = request.headers.get('authorization');
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
         { message: 'Unauthorized' },
@@ -58,24 +26,96 @@ export async function POST(request: Request) {
       );
     }
     
-    // Parse request body (with error handling)
-    let requestData;
-    try {
-      requestData = await request.json();
-    } catch (error) {
-      console.error('Error parsing request body:', error);
+    const client = await clientPromise;
+    const db = client.db();
+    
+    // Aggregate to get posts with author details
+    const posts = await db.collection('posts')
+      .aggregate([
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'author'
+          }
+        },
+        {
+          $unwind: {
+            path: '$author',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            caption: 1,
+            imageUrl: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            likes: 1,
+            'author.name': 1,
+            'author.email': 1
+          }
+        },
+        {
+          $sort: { createdAt: -1 }
+        }
+      ])
+      .toArray();
+    
+      return NextResponse.json({
+        posts: posts.map(post => ({
+          ...post,
+          _id: post._id instanceof ObjectId ? post._id.toString() : post._id,
+          userId: post.userId instanceof ObjectId ? post.userId.toString() : post.userId
+        }))
+      });
+  } catch (error: any) {
+    console.error('Error fetching posts:', error);
+    return NextResponse.json(
+      { message: error.message || 'Failed to fetch posts' },
+      { status: 500 }
+    );
+  }
+}
+
+// Create a new post
+export async function POST(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
-        { message: 'Invalid request format' },
-        { status: 400 }
+        { message: 'Unauthorized' },
+        { status: 401 }
       );
     }
     
-    // Validate post data
-    const { title, content } = requestData;
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
     
-    if (!title || !content) {
+    if (!payload) {
       return NextResponse.json(
-        { message: 'Missing required fields: title and content are required' },
+        { message: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+    
+    const user = await findUserById(payload.userId);
+    
+    if (!user) {
+      return NextResponse.json(
+        { message: 'User not found' },
+        { status: 404 }
+      );
+    }
+    
+    const { caption, imageUrl } = await request.json();
+    
+    if (!caption || !imageUrl) {
+      return NextResponse.json(
+        { message: 'Caption and image URL are required' },
         { status: 400 }
       );
     }
@@ -83,22 +123,63 @@ export async function POST(request: Request) {
     const client = await clientPromise;
     const db = client.db();
     
-    // Create post
     const result = await db.collection('posts').insertOne({
-      title,
-      content,
-      userId: payload.userId,
+      userId: new ObjectId(user._id), // Make sure this is an ObjectId
+      caption,
+      imageUrl,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      likes: 0
     });
     
-    // Get the created post
-    const post = await db.collection('posts').findOne({ _id: result.insertedId });
+    // Fetch the created post with author details
+    const newPost = await db.collection('posts')
+      .aggregate([
+        {
+          $match: { _id: result.insertedId }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'author'
+          }
+        },
+        {
+          $unwind: {
+            path: '$author',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            userId: 1, // Make sure this is included
+            caption: 1,
+            imageUrl: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            likes: 1,
+            'author.name': 1,
+            'author.email': 1
+          }
+        }
+      ])
+      .toArray();
     
-    return NextResponse.json({
-      message: 'Post created successfully',
-      post
-    }, { status: 201 });
+    const post = newPost[0];
+    
+    if (post && post._id) {
+      return NextResponse.json({
+        message: 'Post created successfully',
+        post: {
+          ...post,
+          _id: post._id.toString(),
+          userId: post.userId ? post.userId.toString() : user._id
+        }
+      });
+    }
   } catch (error: any) {
     console.error('Error creating post:', error);
     return NextResponse.json(

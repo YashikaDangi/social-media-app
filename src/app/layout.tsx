@@ -6,8 +6,8 @@ import { AuthProvider } from './context/AuthContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Auth App',
-  description: 'Authentication application with Next.js, TypeScript, MongoDB, and Tailwind CSS',
+  title: 'Social Feed',
+  description: 'Share posts with your friends',
 };
 
 export default function RootLayout({
@@ -17,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${inter.className} bg-gray-50`}>
         <AuthProvider>
           {children}
         </AuthProvider>

@@ -1,19 +1,18 @@
+// src/models/Post.ts
 import { ObjectId } from 'mongodb';
 
 export interface Post {
   _id: string;
-  title: string;
-  content: string;
-  userId: string;
-  user?: {
-    _id: string;
+  userId: string | ObjectId;
+  caption: string;
+  imageUrl: string;
+  createdAt: Date;
+  updatedAt: Date;
+  author?: {
     name: string;
     email: string;
   };
-  createdAt: string;
-  updatedAt: string;
-  likes?: string[];
-  comments?: number;
+  likes?: number;
 }
 
 export interface Comment {
