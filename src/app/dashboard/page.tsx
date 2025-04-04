@@ -4,16 +4,23 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import Link from 'next/link';
+import { 
+  Home, 
+  User, 
+  Settings, 
+  LogOut 
+} from 'lucide-react';
 import PostCard from '@/components/PostCard';
 import CreatePost from '@/components/CreatePost';
 import { Post } from '@/models/Post';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function Dashboard() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/login');
@@ -96,11 +103,12 @@ export default function Dashboard() {
     }));
   };
 
-  if (loading || isLoading) {
+  if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-24">
-        <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
-          <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Loading...</h2>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-pulse w-16 h-16 mx-auto bg-indigo-500 rounded-full mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     );
@@ -111,65 +119,121 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center p-6">
-      <div className="w-full max-w-2xl">
-        {/* Dashboard Header with User Info */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
-            <Link href="/profile" className="text-indigo-600 hover:text-indigo-500 text-sm font-medium">
-              View Profile
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-md z-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            {/* Logo */}
+            <Link href="/" className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+              MyApp
             </Link>
+
+            {/* Navigation Links */}
+            <div className="flex items-center space-x-6">
+              <Link 
+                href="/dashboard" 
+                className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center space-x-2"
+              >
+                <Home className="h-5 w-5" />
+                <span>Dashboard</span>
+              </Link>
+              <Link 
+                href="/profile" 
+                className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center space-x-2"
+              >
+                <User className="h-5 w-5" />
+                <span>Profile</span>
+              </Link>
+            </div>
+
+            {/* User Menu */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                  <span className="text-indigo-600 font-semibold">
+                    {user.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {user.name}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Logout Button */}
+              <button
+                onClick={logout}
+                className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 flex items-center space-x-2"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="hidden md:inline">Logout</span>
+              </button>
+            </div>
           </div>
-          
-          <div className="flex items-center p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
-            <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-              <span className="text-xl font-bold text-indigo-800">
-                {user.name.charAt(0).toUpperCase()}
-              </span>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="pt-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-12 gap-6">
+          {/* Main Content Column */}
+          <div className="col-span-8 space-y-6">
+            {/* Create Post Section */}
+            {/* <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Create a Post
+              </h3>
+              <CreatePost onPostCreated={handleNewPost} />
+            </div> */}
+
+            {/* All Posts Section */}
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                Recent Posts
+              </h3>
+              
+              {posts.length > 0 ? (
+                <div className="space-y-4">
+                  {posts.map(post => (
+                    <PostCard
+                      key={post._id}
+                      post={post}
+                      currentUser={user}
+                      onDelete={handleDeletePost}
+                      onLikeUpdate={handleLikeUpdate}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
+                  <p className="text-gray-500 dark:text-gray-400">
+                   <LoadingSpinner/>
+                  </p>
+                </div>
+              )}
             </div>
-            <div>
-              <p className="font-medium text-gray-800 dark:text-gray-200">Welcome, {user.name}!</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
-            </div>
-            <button
-              onClick={logout}
-              className="ml-auto py-1 px-3 text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-md hover:bg-red-50"
-            >
-              Logout
-            </button>
           </div>
-        </div>
-        
-        {/* Create Post Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create a Post</h3>
-          <CreatePost onPostCreated={handleNewPost} />
-        </div>
-        
-        {/* All Posts Section */}
-        <div className="mb-6">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Recent Posts</h3>
-          
-          {posts.length > 0 ? (
-            <div className="space-y-4">
-              {posts.map(post => (
-                <PostCard
-                  key={post._id}
-                  post={post}
-                  currentUser={user}
-                  onDelete={handleDeletePost}
-                  onLikeUpdate={handleLikeUpdate}
-                />
-              ))}
+
+          {/* Sidebar */}
+          {/* <div className="col-span-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Welcome, {user.name}!
+              </h3>
+              <div className="p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
+                <p className="text-gray-500 dark:text-gray-400">
+                  {user.email}
+                </p>
+              </div>
             </div>
-          ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
-              <p className="text-gray-500 dark:text-gray-400">No posts available. Be the first to create a post!</p>
-            </div>
-          )}
+          </div> */}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
