@@ -5,10 +5,10 @@ import { verifyToken } from '@/lib/auth';
 
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await Promise.resolve(context.params); 
+    const { id } = await params;
     if (!ObjectId.isValid(id)) {
       return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
     }
@@ -86,7 +86,7 @@ export async function GET(
 
 export async function DELETE(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     // Verify authentication
@@ -102,7 +102,8 @@ export async function DELETE(
       return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
     
-    const postId = context.params.id;
+    const {postId} =  await params;
+
     if (!ObjectId.isValid(postId)) {
       return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
     }

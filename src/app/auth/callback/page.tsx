@@ -1,10 +1,10 @@
-// In app/auth/callback/page.tsx
+// app/auth/callback/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function AuthCallback() {
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -15,12 +15,8 @@ export default function AuthCallback() {
     
     if (token) {
       try {
-        // Save token to localStorage
         localStorage.setItem('token', token);
         console.log("Token saved to localStorage");
-        
-        // Redirect to dashboard
-        console.log("Attempting redirect to dashboard");
         router.push('/dashboard');
       } catch (err) {
         console.error("Error in callback:", err);
@@ -44,7 +40,6 @@ export default function AuthCallback() {
         <div className="flex justify-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
         </div>
-        
         {token && (
           <div className="mt-4 text-center">
             <p className="mb-2">If you're not automatically redirected:</p>
@@ -58,5 +53,13 @@ export default function AuthCallback() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CallbackContent />
+    </Suspense>
   );
 }
